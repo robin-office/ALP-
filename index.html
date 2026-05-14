@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ALP Astrology | Advanced Social Media OS</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        astro: {
+                            bg: '#040b16',
+                            surface: '#0a1428',
+                            card: '#111d36',
+                            cardHover: '#182747',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #040b16;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        
+        .scale-in { animation: scaleIn 0.2s cubic-bezier(0.16,1,0.3,1) forwards; transform-origin: center; }
+        .fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; opacity: 0; transform: translateY(10px); }
+        
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+        @keyframes fadeInUp { to { opacity:1; transform:translateY(0); } }
+
+        .glass-card {
+            background: rgba(10,20,40,0.8);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 1.5rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-card::before {
+            content:''; position:absolute; top:0; left:0; width:100%; height:1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+        .glass-input {
+            background: rgba(17,29,54,0.5);
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px);
+        }
+        .glass-input:focus { border-color: rgba(37,99,235,0.5); outline:none; box-shadow: 0 0 0 1px rgba(37,99,235,0.5); }
+
+        /* Sync indicator pulse */
+        @keyframes pulse-green { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        .sync-pulse { animation: pulse-green 1.5s ease-in-out infinite; }
+        
+        /* Toast notification */
+        .toast { 
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            padding: 12px 20px; border-radius: 14px; font-size: 13px; font-weight: 500;
+            backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            animation: slideUp 0.3s ease forwards;
+            max-width: 320px;
+        }
+        @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        .toast-success { background: rgba(16,185,129,0.15); color: #6ee7b7; border-color: rgba(16,185,129,0.2); }
+        .toast-error   { background: rgba(239,68,68,0.15);  color: #fca5a5; border-color: rgba(239,68,68,0.2); }
+        .toast-info    { background: rgba(59,130,246,0.15); color: #93c5fd; border-color: rgba(59,130,246,0.2); }
+        .toast-warning { background: rgba(245,158,11,0.15); color: #fcd34d; border-color: rgba(245,158,11,0.2); }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Background Effects -->
+    <div class="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div class="absolute top-[-10%] left-[-10%] w-[60%] md:w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px] mix-blend-screen"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[70%] md:w-[50%] h-[50%] bg-amber-500/5 rounded-full blur-[120px] mix-blend-screen"></div>
+    </div>
+
+    <div id="app-root" class="relative z-10 w-full h-screen"></div>
+    <div id="modals-container"></div>
+    <div id="toast-container"></div>
+
+    <script>
+    // ══════════════════════════════════════════════════════════
+    //  🔑  CONFIGURATION  —  paste your Apps Script URL below
+    // ══════════════════════════════════════════════════════════
+    const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+    //  ↑ Replace with your deployed Web App URL
+    //  Get it from: Apps Script → Deploy → Manage Deployments → Copy URL
+    // ══════════════════════════════════════════════════════════
+
+    // ── Data Models ──────────────────────────────────────────
+    const USERS = [
+        { id: 'admin_1', name: 'Master Admin',     role: 'admin', avatar: 'https://i.pravatar.cc/150?u=admin' },
+        { id: 'user_1',  name: 'Employee Santhosh', role: 'user',  avatar: 'https://i.pravatar.cc/150?u=santhosh' },
+        { id: 'user_2',  name: 'Employee Pavithra', role: 'user',  avatar: 'https://i.pravatar.cc/150?u=pavithra' }
+    ];
+
+    const COLUMNS = ['Idea','Script','Recording','Editing','Review','Ready','Scheduled','Posted'];
+
+    const INITIAL_ACCOUNTS = {
+        'user_1': [
+            { id:'ig_sasti',  platform:'Instagram', name:'ALP Sasti TV Official',     url:'https://www.instagram.com/alp_sasti_tv_official/' },
+            { id:'ig_pothu',  platform:'Instagram', name:'Pothuvudaimoorthy ALP',     url:'https://www.instagram.com/pothuvudaimoorthy_alp/' },
+            { id:'fb_moorthy',platform:'Facebook',  name:'AlpAstrologymoorthy',        url:'https://www.facebook.com/AlpAstrologymoorthy/' },
+            { id:'fb_sasti',  platform:'Facebook',  name:'ALP Sasti',                  url:'https://www.facebook.com/alp.sasti' },
+            { id:'tg_astro',  platform:'Telegram',  name:'ALP Astrology TV',           url:'https://t.me/ALPASTROLOGYtv' },
+            { id:'bl_astro',  platform:'Blogger',   name:'ALP Astrology Blog',         url:'https://alpastrology.blogspot.com/' }
+        ],
+        'user_2': [
+            { id:'fb_nam',     platform:'Facebook', name:'NAM JOTHIDAM',               url:'https://www.facebook.com/NAM.JOTHIDAM/' },
+            { id:'fb_inventor',platform:'Facebook', name:'ALP Astrologer Inventor',    url:'https://www.facebook.com/alpAstrologerinventor/' },
+            { id:'fb_prof1',   platform:'Facebook', name:'FB Profile 1',               url:'https://www.facebook.com/profile.php?id=61556421629840' },
+            { id:'fb_prof2',   platform:'Facebook', name:'FB Profile 2',               url:'https://www.facebook.com/profile.php?id=100064983311770' }
+        ]
+    };
+
+    // ── Global State ─────────────────────────────────────────
+    const state = {
+        currentUser: null,
+        activeTab: 'dashboard',
+        selectedDate: new Date().toISOString().split('T')[0],
+        searchTerm: '',
+        isMobileMenuOpen: false,
+        exportDropdownOpen: false,
+        // Data
+        videos: [],
+        userAccounts: JSON.parse(JSON.stringify(INITIAL_ACCOUNTS)),
+        dailyTasks: [],
+        // Sync status
+        syncStatus: 'idle',    // idle | syncing | success | error | offline
+        lastSynced: null,
+        isScriptConfigured: false,
+        pendingChanges: [],    // queue of actions to push
+    };
+
+    // ── Google Sheets Sync Layer ──────────────────────────────
+    function isConfigured() {
+        return SCRIPT_URL && SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbzD1fFUduJ9WWv6YmpMSbNsoxW2OcPKDr-USRhjJ4ll1kh9dpro4p2K5KEEFZjqVZ5d/exec';
+    }
+
+    async function gsRequest(action, payload = {}) {
+        if (!isConfigured()) throw new Error('Script URL not configured');
+        const res = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action, payload })
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Unknown error');
+        return json.data;
+    }
+
+    function setSyncStatus(status) {
+        state.syncStatus = status;
+        if (status === 'success') state.lastSynced = new Date();
+        updateSyncIndicator();
+    }
+
+    function updateSyncIndicator() {
+        const el = document.getElementById('sync-indicator');
+        if (!el) return;
+        if (!isConfigured()) {
+            el.innerHTML = `<span class="flex items-center gap-1.5 text-amber-400 text-[10px] font-semibold cursor-pointer hover:text-amber-300" onclick="openSetupModal()">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> Setup Required
+            </span>`;
+            lucide.createIcons({ nodes: [el] });
+            return;
+        }
+        const configs = {
+            idle:    { color:'text-slate-500', dot:'bg-slate-600',    label:'Connected' },
+            syncing: { color:'text-blue-400',  dot:'bg-blue-400 sync-pulse', label:'Syncing...' },
+            success: { color:'text-teal-400',  dot:'bg-teal-400',     label: state.lastSynced ? `Saved ${state.lastSynced.toLocaleTimeString()}` : 'Saved' },
+            error:   { color:'text-rose-400',  dot:'bg-rose-400',     label:'Sync Error' },
+            offline: { color:'text-amber-400', dot:'bg-amber-400',    label:'Local Mode' },
+        };
+        const c = configs[state.syncStatus] || configs.idle;
+        el.innerHTML = `<span class="flex items-center gap-1.5 ${c.color} text-[10px] font-semibold">
+            <span class="w-1.5 h-1.5 rounded-full ${c.dot} inline-block"></span>${c.label}
+        </span>`;
+        lucide.createIcons({ nodes: [el] });
+    }
+
+    // Load full state from Google Sheets on startup
+    async function loadFromSheets() {
+        if (!isConfigured()) {
+            state.syncStatus = 'offline';
+            // Load initial demo data
+            state.videos = [
+                { id:'v1', title:'Jupiter Transit Effects', topic:'Astrology', about:'Detailed analysis', speaker:'Moorthy', speakerPriority:'High', priority:'High', status:'Editing', assignee:'user_1', postDate:'', postTime:'', captionReady:true, hashtagsReady:false, thumbnailReady:true, ctaAdded:false, speakerTag:false, notes:'', ig_acc:'@alp_sasti_tv_official', fb_acc:'@AlpAstrologymoorthy', yt_shorts:'@alpsasti', x_acc:'', threads_acc:'', links:{} },
+                { id:'v2', title:'Daily Horoscope Highlights', topic:'Daily', about:'Quick snapshot for all zodiac signs', speaker:'Pavithra', speakerPriority:'Medium', priority:'Low', status:'Posted', assignee:'user_2', postDate:new Date().toISOString().split('T')[0], postTime:'09:00', captionReady:true, hashtagsReady:true, thumbnailReady:true, ctaAdded:true, speakerTag:true, notes:'Good early engagement', ig_acc:'', fb_acc:'@NAM.JOTHIDAM', yt_shorts:'', x_acc:'', threads_acc:'', links:{ instagram:'https://instagram.com/p/12345' } }
+            ];
+            updateSyncIndicator();
+            return;
+        }
+        setSyncStatus('syncing');
+        try {
+            const data = await gsRequest('getFullState');
+            if (data.videos      && data.videos.length)       state.videos      = data.videos;
+            if (data.dailyTasks  && data.dailyTasks.length)   state.dailyTasks  = data.dailyTasks;
+            if (data.userAccounts && Object.keys(data.userAccounts).length) {
+                // Merge: sheet accounts override defaults but preserve defaults for users with no sheet data
+                Object.entries(data.userAccounts).forEach(([uid, accs]) => {
+                    state.userAccounts[uid] = accs;
+                });
+            }
+            setSyncStatus('success');
+            showToast('✓ Data loaded from Google Sheets', 'success');
+            renderApp();
+        } catch (err) {
+            console.error('Load error:', err);
+            setSyncStatus('error');
+            showToast('Could not load from Sheets — using local data', 'warning');
+        }
+    }
+
+    // Save a single video
+    async function syncVideo(video) {
+        if (!isConfigured()) return;
+        setSyncStatus('syncing');
+        try {
+            await gsRequest('saveVideo', video);
+            setSyncStatus('success');
+        } catch(e) {
+            setSyncStatus('error');
+            showToast('Sync failed: ' + e.message, 'error');
+        }
+    }
+
+    // Save daily task
+    async function syncDailyTask(task) {
+        if (!isConfigured()) return;
+        setSyncStatus('syncing');
+        try {
+            await gsRequest('saveDailyTask', task);
+            setSyncStatus('success');
+        } catch(e) {
+            setSyncStatus('error');
+            showToast('Sync failed: ' + e.message, 'error');
+        }
+    }
+
+    // Save account
+    async function syncAccount(acc, userId) {
+        if (!isConfigured()) return;
+        setSyncStatus('syncing');
+        try {
+            await gsRequest('saveAccount', { ...acc, userId });
+            setSyncStatus('success');
+        } catch(e) {
+            setSyncStatus('error');
+        }
+    }
+
+    // Delete account from sheet
+    async function syncDeleteAccount(id, userId) {
+        if (!isConfigured()) return;
+        try { await gsRequest('deleteAccount', { id, userId }); } catch(e) {}
+    }
+
+    // Manual full sync button
+    async function forceSyncAll() {
+        if (!isConfigured()) { openSetupModal(); return; }
+        setSyncStatus('syncing');
+        showToast('Syncing all data...', 'info');
+        try {
+            await gsRequest('saveFullState', {
+                videos:       state.videos,
+                dailyTasks:   state.dailyTasks,
+                userAccounts: state.userAccounts
+            });
+            setSyncStatus('success');
+            showToast('✓ All data synced to Google Sheets!', 'success');
+        } catch(e) {
+            setSyncStatus('error');
+            showToast('Full sync failed: ' + e.message, 'error');
+        }
+    }
+
+    // ── Toast Notifications ───────────────────────────────────
+    function showToast(msg, type = 'info') {
+        const id = 'toast_' + Date.now();
+        const icons = { success:'check-circle', error:'x-circle', warning:'alert-triangle', info:'info' };
+        const el = document.createElement('div');
+        el.id = id;
+        el.className = `toast toast-${type}`;
+        el.innerHTML = `<div class="flex items-center gap-2"><i data-lucide="${icons[type]||'info'}" class="w-4 h-4 shrink-0"></i><span>${msg}</span></div>`;
+        document.getElementById('toast-container').appendChild(el);
+        lucide.createIcons({ nodes: [el] });
+        setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(10px)'; el.style.transition='0.3s'; setTimeout(()=>el.remove(), 300); }, 3000);
+    }
+
+    // ── Setup Modal ───────────────────────────────────────────
+    function openSetupModal() {
+        const modalHtml = `
+        <div id="setup-modal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeModal('setup-modal')"></div>
+            <div class="glass-card p-6 w-full max-w-2xl relative z-10 scale-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="sheet" class="text-teal-400 w-5 h-5"></i> Google Sheets Setup
+                        </h2>
+                        <p class="text-slate-400 text-xs mt-1">Connect your app to Google Sheets in 5 minutes</p>
+                    </div>
+                    <button onclick="closeModal('setup-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Step 1 -->
+                    <div class="bg-astro-card border border-white/[0.05] rounded-2xl p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold border border-blue-500/30 shrink-0">1</span>
+                            <h3 class="font-semibold text-slate-200 text-sm">Open Google Apps Script</h3>
+                        </div>
+                        <p class="text-xs text-slate-400 pl-10">Go to <a href="https://script.google.com" target="_blank" class="text-blue-400 hover:underline font-medium">script.google.com</a> and create a <strong class="text-slate-300">New Project</strong>.</p>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-astro-card border border-white/[0.05] rounded-2xl p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold border border-blue-500/30 shrink-0">2</span>
+                            <h3 class="font-semibold text-slate-200 text-sm">Paste the Backend Code</h3>
+                        </div>
+                        <p class="text-xs text-slate-400 pl-10">Replace everything in <code class="bg-astro-surface px-1.5 py-0.5 rounded text-amber-400">Code.gs</code> with the content from <strong class="text-slate-300">GoogleAppsScript_Backend.gs</strong> file provided alongside this HTML.</p>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-astro-card border border-white/[0.05] rounded-2xl p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold border border-blue-500/30 shrink-0">3</span>
+                            <h3 class="font-semibold text-slate-200 text-sm">Deploy as Web App</h3>
+                        </div>
+                        <div class="pl-10 text-xs text-slate-400 space-y-1.5">
+                            <p>Click <strong class="text-slate-300">Deploy → New Deployment</strong></p>
+                            <p>Type: <span class="text-teal-400 font-medium">Web App</span></p>
+                            <p>Execute as: <span class="text-teal-400 font-medium">Me</span></p>
+                            <p>Who has access: <span class="text-teal-400 font-medium">Anyone</span></p>
+                            <p>Click <strong class="text-slate-300">Deploy</strong> → Authorize → Copy the URL</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="bg-astro-card border border-white/[0.05] rounded-2xl p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs font-bold border border-teal-500/30 shrink-0">4</span>
+                            <h3 class="font-semibold text-slate-200 text-sm">Paste URL & Save</h3>
+                        </div>
+                        <p class="text-xs text-slate-400 pl-10 mb-3">Open this HTML file in a text editor, find <code class="bg-astro-surface px-1.5 py-0.5 rounded text-amber-400">SCRIPT_URL</code> at the top of the script, and replace the placeholder with your Web App URL.</p>
+                        <div class="pl-10">
+                            <div class="bg-astro-surface border border-white/[0.05] rounded-xl p-3 font-mono text-xs text-slate-400 overflow-x-auto">
+                                <span class="text-slate-500">const</span> <span class="text-blue-300">SCRIPT_URL</span> = <span class="text-teal-300">'https://script.google.com/macros/s/YOUR_ID/exec'</span>;
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-xs text-amber-300 flex gap-3">
+                        <i data-lucide="shield-check" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                        <p>The Google Sheet will be auto-created in your Google Drive as <strong>"ALP Astrology Database"</strong> on the first data save. All data is stored in your own Google account — Anthropic never sees it.</p>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('modals-container').insertAdjacentHTML('beforeend', modalHtml);
+        lucide.createIcons();
+    }
+
+    // ── Helper Functions ──────────────────────────────────────
+    function getPlatformIconHTML(platform, size=20) {
+        const p = platform.toLowerCase();
+        if (p==='instagram') return `<i data-lucide="instagram" class="text-pink-500" style="width:${size}px;height:${size}px"></i>`;
+        if (p==='facebook')  return `<i data-lucide="facebook"  class="text-blue-500" style="width:${size}px;height:${size}px"></i>`;
+        if (p==='youtube')   return `<i data-lucide="youtube"   class="text-red-500"  style="width:${size}px;height:${size}px"></i>`;
+        if (p==='telegram')  return `<i data-lucide="send"      class="text-sky-500"  style="width:${size}px;height:${size}px"></i>`;
+        if (p==='x'||p==='twitter') return `<i data-lucide="twitter" class="text-slate-300" style="width:${size}px;height:${size}px"></i>`;
+        if (p==='blogger')   return `<i data-lucide="file-text" class="text-orange-500" style="width:${size}px;height:${size}px"></i>`;
+        return `<i data-lucide="globe" class="text-blue-400" style="width:${size}px;height:${size}px"></i>`;
+    }
+
+    function showCustomAlert(title, message) {
+        const modalHtml = `
+            <div id="alert-modal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('alert-modal')"></div>
+                <div class="glass-card p-6 w-full max-w-sm relative z-10 scale-in text-center">
+                    <div class="mx-auto w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 text-blue-400"><i data-lucide="info"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">${title}</h3>
+                    <p class="text-sm text-slate-400 mb-6">${message}</p>
+                    <button onclick="closeModal('alert-modal')" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium py-2.5 rounded-xl">Got it</button>
+                </div>
+            </div>`;
+        document.getElementById('modals-container').insertAdjacentHTML('beforeend', modalHtml);
+        lucide.createIcons();
+    }
+
+    function exportToCSV(data, filename) {
+        if (!data || !data.length) { showCustomAlert('Export Failed','No data available.'); return; }
+        const headers = Object.keys(data[0]).join(',');
+        const rows = data.map(row => Object.values(row).map(val=>`"${String(val).replace(/"/g,'""')}"`).join(',')).join('\n');
+        const blob = new Blob([`${headers}\n${rows}`], { type:'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', filename);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // ── State Mutations ───────────────────────────────────────
+    function toggleMobileMenu(forceClose=false) { state.isMobileMenuOpen = forceClose ? false : !state.isMobileMenuOpen; renderApp(); }
+    function toggleExportDropdown() { state.exportDropdownOpen = !state.exportDropdownOpen; renderApp(); }
+
+    function loginUser(userId) {
+        state.currentUser = USERS.find(u => u.id === userId);
+        state.activeTab = 'dashboard';
+        state.isMobileMenuOpen = false;
+        renderApp();
+        // Load data after login
+        loadFromSheets();
+    }
+
+    function logoutUser() { state.currentUser = null; state.isMobileMenuOpen = false; renderApp(); }
+
+    function setTab(tabId) { state.activeTab = tabId; state.isMobileMenuOpen = false; renderApp(); }
+
+    function changeDate(days) {
+        const d = new Date(state.selectedDate); d.setDate(d.getDate() + days);
+        state.selectedDate = d.toISOString().split('T')[0]; renderApp();
+    }
+
+    function updateTaskCount(accountId, change) {
+        let task = state.dailyTasks.find(t => t.date===state.selectedDate && t.userId===state.currentUser.id);
+        if (!task) {
+            task = { id:`dt_${Date.now()}`, date:state.selectedDate, userId:state.currentUser.id, accounts:{} };
+            state.dailyTasks.push(task);
+        }
+        if (typeof task.accounts[accountId]==='number') task.accounts[accountId] = { count:task.accounts[accountId], links:[] };
+        if (!task.accounts[accountId]) task.accounts[accountId] = { count:0, links:[] };
+        const newVal = Math.max(0, task.accounts[accountId].count + change);
+        task.accounts[accountId].count = newVal;
+        if (task.accounts[accountId].links.length > newVal) task.accounts[accountId].links = task.accounts[accountId].links.slice(0, newVal);
+        renderApp();
+        // Auto-sync after a short delay (debounced)
+        clearTimeout(state._taskSyncTimer);
+        state._taskSyncTimer = setTimeout(() => syncDailyTask(task), 1000);
+    }
+
+    function toggleVideoChecklist(videoId, field) {
+        const vid = state.videos.find(v => v.id===videoId);
+        if (vid) { vid[field] = !vid[field]; renderApp(); syncVideo(vid); }
+    }
+
+    function updateVideoStatus(videoId, status) {
+        const vid = state.videos.find(v => v.id===videoId);
+        if (vid) { vid.status = status; renderApp(); syncVideo(vid); }
+    }
+
+    function moveKanbanCard(videoId, direction) {
+        const vid = state.videos.find(v => v.id===videoId);
+        if (vid) {
+            const ci = COLUMNS.indexOf(vid.status);
+            vid.status = COLUMNS[direction==='forward' ? Math.min(ci+1,COLUMNS.length-1) : Math.max(ci-1,0)];
+            renderApp(); syncVideo(vid);
+        }
+    }
+
+    const NAV_ITEMS = [
+        { id:'dashboard', label:'Dashboard',  icon:'layout-dashboard', adminOnly:false },
+        { id:'videos',    label:'My Tasks',   icon:'list-todo',        adminOnly:false },
+        { id:'kanban',    label:'Workflow',   icon:'align-left',       adminOnly:false },
+        { id:'tracker',   label:'Daily Log',  icon:'activity',         adminOnly:false },
+        { id:'ai',        label:'AI Studio',  icon:'bot',              adminOnly:true  },
+        { id:'settings',  label:'Settings',   icon:'settings',         adminOnly:true  }
+    ];
+
+    // ── HTML Renderers ────────────────────────────────────────
+    function getLoginHTML() {
+        return `
+        <div class="min-h-screen flex items-center justify-center p-4">
+            <div class="relative z-10 max-w-md w-full">
+                <div class="text-center mb-10 fade-in-up">
+                    <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-[#111d36] to-[#0a1428] border border-blue-500/20 shadow-[0_0_40px_rgba(37,99,235,0.3)] mb-6 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
+                        <i data-lucide="star" class="text-amber-400 w-10 h-10 relative z-10"></i>
+                    </div>
+                    <h1 class="text-4xl font-bold text-white tracking-tight mb-2">ALP Astrology</h1>
+                    <p class="text-slate-400 text-sm">Select your workspace profile to continue</p>
+                </div>
+                <div class="space-y-4 fade-in-up" style="animation-delay:0.1s">
+                    ${USERS.map(user => `
+                        <button onclick="loginUser('${user.id}')" class="w-full glass-card p-4 flex items-center gap-4 hover:bg-white/[0.03] hover:border-blue-500/30 transition-all group shadow-xl">
+                            <img src="${user.avatar}" alt="Avatar" class="w-12 h-12 rounded-full border-2 border-white/10 group-hover:border-blue-500/50 transition-colors">
+                            <div class="text-left flex-1">
+                                <h3 class="font-semibold text-slate-100">${user.name}</h3>
+                                <span class="text-xs font-medium px-2 py-0.5 rounded-md uppercase tracking-wider ${user.role==='admin' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'} border">
+                                    ${user.role} workspace
+                                </span>
+                            </div>
+                            <i data-lucide="chevron-right" class="text-slate-600 group-hover:text-blue-400 transition-colors"></i>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="mt-6 text-center">
+                    <button onclick="openSetupModal()" class="text-xs text-slate-500 hover:text-blue-400 transition-colors flex items-center gap-1.5 mx-auto">
+                        <i data-lucide="settings" class="w-3.5 h-3.5"></i> Configure Google Sheets Backend
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function getMainLayoutHTML() {
+        return `
+        <div class="flex h-screen overflow-hidden fade-in-up w-full" onclick="if(state.exportDropdownOpen){state.exportDropdownOpen=false;renderApp();}">
+            <!-- Mobile Backdrop -->
+            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300 ${state.isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}" onclick="toggleMobileMenu(true)"></div>
+
+            <!-- Sidebar -->
+            <aside class="fixed inset-y-0 left-0 w-64 glass-card rounded-none border-t-0 border-b-0 border-l-0 flex flex-col z-40 transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:relative md:translate-x-0 ${state.isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} shadow-2xl md:shadow-none bg-[#0a1428]/95">
+                <div class="h-20 flex items-center justify-between px-6 border-b border-white/[0.04] shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+                            <i data-lucide="star" class="text-amber-400 w-5 h-5"></i>
+                        </div>
+                        <span class="font-bold text-lg tracking-tight text-white truncate">ALP Astrology</span>
+                    </div>
+                    <button onclick="toggleMobileMenu(true)" class="md:hidden text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="px-4 py-6 flex-1 flex flex-col custom-scrollbar overflow-y-auto">
+                    <div class="flex items-center gap-3 px-2 mb-8 bg-astro-card p-3 rounded-2xl border border-white/[0.02]">
+                        <img src="${state.currentUser.avatar}" alt="Profile" class="w-10 h-10 rounded-xl border border-white/10 shrink-0" />
+                        <div class="overflow-hidden">
+                            <p class="text-sm font-semibold text-slate-200 truncate">${state.currentUser.name}</p>
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">${state.currentUser.role}</p>
+                        </div>
+                    </div>
+                    <nav class="space-y-1.5 flex-1">
+                        ${NAV_ITEMS.filter(item => !item.adminOnly || state.currentUser.role==='admin').map(item => `
+                            <button onclick="setTab('${item.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-sm font-medium ${state.activeTab===item.id ? 'bg-gradient-to-r from-blue-600/10 to-transparent text-blue-300 border-l-2 border-blue-500' : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'}">
+                                <i data-lucide="${item.icon}" class="${state.activeTab===item.id ? 'text-blue-400' : 'text-slate-500'} w-[18px] h-[18px]"></i>
+                                ${item.label}
+                            </button>
+                        `).join('')}
+                    </nav>
+
+                    <!-- Sync Panel -->
+                    <div class="mt-6 bg-astro-card border border-white/[0.04] rounded-2xl p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Google Sheets</span>
+                            <div id="sync-indicator" class="text-xs"></div>
+                        </div>
+                        <button onclick="forceSyncAll()" class="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold text-teal-400 border border-teal-500/20 bg-teal-500/10 hover:bg-teal-500/20 transition-colors">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sync Now
+                        </button>
+                        ${!isConfigured() ? `<button onclick="openSetupModal()" class="w-full mt-2 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold text-amber-400 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
+                            <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> Setup Required
+                        </button>` : ''}
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-white/[0.04]">
+                        <button onclick="logoutUser()" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors text-sm font-medium">
+                            <i data-lucide="log-out" class="w-[18px] h-[18px]"></i> Logout
+                        </button>
+                        <div class="mt-4 text-center">
+                            <a href="https://sanstudio-hub.github.io/in/" target="_blank" class="text-[10px] text-slate-600 hover:text-blue-400 transition-colors uppercase tracking-widest font-semibold block">Developed By SanStudio</a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 flex flex-col h-screen overflow-hidden bg-transparent relative w-full">
+                <header class="h-16 md:h-20 flex items-center justify-between px-4 sm:px-6 border-b border-white/[0.04] bg-astro-surface/80 backdrop-blur-xl shrink-0 w-full z-20">
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleMobileMenu()" class="md:hidden p-2 -ml-2 mr-1 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors">
+                            <i data-lucide="menu" class="w-6 h-6"></i>
+                        </button>
+                        <span class="hidden sm:block text-xs font-medium px-2.5 py-1 rounded-full bg-astro-card border border-white/[0.05] text-slate-400">System V2.1</span>
+                    </div>
+                    <div class="flex items-center gap-3 sm:gap-4">
+                        <!-- Compact sync status in header for mobile -->
+                        <div class="sm:hidden flex items-center">
+                            ${isConfigured()
+                                ? `<span class="w-2 h-2 rounded-full ${state.syncStatus==='success'?'bg-teal-400':state.syncStatus==='syncing'?'bg-blue-400 sync-pulse':state.syncStatus==='error'?'bg-rose-400':'bg-slate-600'} inline-block"></span>`
+                                : `<button onclick="openSetupModal()" class="text-amber-400"><i data-lucide="alert-circle" class="w-4 h-4"></i></button>`
+                            }
+                        </div>
+                        <div class="relative hidden sm:block">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4"></i>
+                            <input type="text" placeholder="Quick Search..." class="glass-input rounded-full pl-10 pr-4 py-2 text-sm text-slate-200 w-48 md:w-64" />
+                        </div>
+                        <button class="relative p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors">
+                            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-astro-surface"></span>
+                            <i data-lucide="bell" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 relative z-10">
+                    <div class="max-w-7xl mx-auto h-full" id="content-container"></div>
+                </div>
+            </main>
+        </div>`;
+    }
+
+    function getDashboardHTML() {
+        const userVideos = state.currentUser.role==='admin' ? state.videos : state.videos.filter(v=>v.assignee===state.currentUser.id);
+        const postedCount = userVideos.filter(v=>v.status==='Posted').length;
+        const inProgressCount = userVideos.length - postedCount;
+        const todayTasks = state.dailyTasks.filter(t=>t.date===state.selectedDate);
+        const todayTotal = todayTasks.reduce((s,t)=>s+Object.values(t.accounts).reduce((a,b)=>a+(typeof b==='number'?b:(b?.count||0)),0), 0);
+
+        return `
+        <div class="space-y-6 fade-in-up">
+            <div class="mb-4">
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-100">${state.currentUser.role==='admin' ? 'Command Center' : `Welcome back, ${state.currentUser.name.split(' ')[1]}`}</h1>
+                <p class="text-slate-400 mt-1 text-sm sm:text-base">${state.currentUser.role==='admin' ? 'Overview of all operations.' : 'Your workflow status for today.'}</p>
+            </div>
+
+            ${!isConfigured() ? `
+            <div class="glass-card p-4 sm:p-5 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20 flex items-center gap-4">
+                <div class="p-2.5 bg-amber-500/20 rounded-xl shrink-0"><i data-lucide="alert-circle" class="text-amber-400 w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-amber-300">Google Sheets Not Connected</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Your data is saved locally only. Connect Google Sheets to save across devices.</p>
+                </div>
+                <button onclick="openSetupModal()" class="shrink-0 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/30 hover:bg-amber-500/30 transition-colors">Setup</button>
+            </div>` : ''}
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div class="glass-card p-5 sm:p-6 bg-gradient-to-br from-blue-600/10 to-transparent border-blue-500/20">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-blue-500/20 rounded-2xl"><i data-lucide="activity" class="text-blue-400 w-5 h-5"></i></div>
+                        <span class="text-[10px] font-semibold bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full border border-blue-500/30">Active</span>
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-bold text-white mb-1">${inProgressCount}</h3>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">In Pipeline</p>
+                </div>
+                <div class="glass-card p-5 sm:p-6 bg-gradient-to-br from-teal-500/10 to-transparent border-teal-500/20">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-teal-500/20 rounded-2xl"><i data-lucide="check-circle-2" class="text-teal-400 w-5 h-5"></i></div>
+                        <span class="text-[10px] font-semibold bg-teal-500/20 text-teal-300 px-2 py-1 rounded-full border border-teal-500/30">Total</span>
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-bold text-white mb-1">${postedCount}</h3>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">Videos Posted</p>
+                </div>
+                <div class="glass-card p-5 sm:p-6 bg-gradient-to-br from-violet-500/10 to-transparent border-violet-500/20 sm:col-span-2 lg:col-span-1">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-violet-500/20 rounded-2xl"><i data-lucide="zap" class="text-violet-400 w-5 h-5"></i></div>
+                        <span class="text-[10px] font-semibold bg-violet-500/20 text-violet-300 px-2 py-1 rounded-full border border-violet-500/30">Today</span>
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-bold text-white mb-1">${todayTotal}</h3>
+                    <p class="text-xs sm:text-sm text-slate-400 font-medium">Posts Today</p>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function getExportDropdownHTML(exportFuncPrefix) {
+        return `
+        <div class="relative z-50">
+            <button onclick="event.stopPropagation(); toggleExportDropdown()" class="glass-input hover:bg-white/5 border-white/[0.04] text-slate-200 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center gap-2 text-sm transition-colors shadow-lg whitespace-nowrap">
+                <i data-lucide="download" class="w-4 h-4 text-teal-400"></i> <span class="hidden sm:inline">Export</span>
+            </button>
+            ${state.exportDropdownOpen ? `
+            <div class="absolute right-0 top-full mt-2 w-48 bg-astro-card border border-white/[0.06] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 scale-in">
+                <button onclick="${exportFuncPrefix}('day')"   class="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-white/5">Export Current Day</button>
+                <button onclick="${exportFuncPrefix}('month')" class="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-white/5 border-t border-white/[0.04]">Export This Month</button>
+                <button onclick="${exportFuncPrefix}('all')"   class="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-white/5 border-t border-white/[0.04]">Export All Data</button>
+            </div>` : ''}
+        </div>`;
+    }
+
+    function getVideoManagerHTML() {
+        const displayVideos = state.currentUser.role==='admin' ? state.videos : state.videos.filter(v=>v.assignee===state.currentUser.id);
+        const filteredVideos = displayVideos.filter(v=>v.title.toLowerCase().includes(state.searchTerm.toLowerCase()));
+
+        return `
+        <div class="space-y-4 sm:space-y-6 fade-in-up h-full flex flex-col">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-100">${state.currentUser.role==='admin' ? 'Master Data Grid' : 'My Tasks & Checklist'}</h1>
+                    <p class="text-slate-400 text-xs sm:text-sm">Changes auto-save to Google Sheets.</p>
+                </div>
+                <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <div class="relative w-full sm:w-64 md:w-72">
+                        <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4"></i>
+                        <input type="text" placeholder="Search videos..." value="${state.searchTerm}" oninput="state.searchTerm=this.value;renderApp();" class="w-full glass-input rounded-full pl-10 pr-4 py-2 sm:py-2.5 text-sm text-slate-200">
+                    </div>
+                    <div class="flex gap-2 ml-auto sm:ml-0">
+                        ${getExportDropdownHTML('handleExportVideos')}
+                        <button onclick="openVideoModal()" class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl flex items-center gap-2 text-sm shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all whitespace-nowrap">
+                            <i data-lucide="plus" class="w-4 h-4"></i> <span class="hidden sm:inline">New Entry</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card flex-1 p-0 flex flex-col overflow-hidden w-full">
+                <div class="overflow-x-auto custom-scrollbar flex-1 w-full">
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr class="border-b border-white/[0.05] bg-astro-card/50">
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase sticky left-0 bg-[#111d36] z-10 w-48 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Video Details</th>
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Status</th>
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Checklist</th>
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/[0.02]">
+                            ${filteredVideos.length===0 ? `<tr><td colspan="4" class="px-6 py-10 text-center text-slate-500 italic text-sm">${state.videos.length===0 ? 'Loading data from Google Sheets...' : 'No videos found.'}</td></tr>` : ''}
+                            ${filteredVideos.map(video => `
+                                <tr class="hover:bg-white/[0.02] group transition-colors">
+                                    <td class="px-4 sm:px-6 py-4 sticky left-0 bg-astro-surface group-hover:bg-[#0f172a] z-10 border-r border-white/[0.02] shadow-[2px_0_5px_rgba(0,0,0,0.1)]">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium text-slate-200 line-clamp-2">${video.title}</span>
+                                            <span class="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                                                <span class="px-1.5 py-0.5 rounded bg-astro-card border border-white/5">${video.id}</span>
+                                                <span class="truncate">${video.speaker}</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 sm:px-6 py-4">
+                                        <select onchange="updateVideoStatus('${video.id}', this.value)" class="bg-astro-card border border-white/[0.05] text-slate-200 text-xs rounded-lg px-2 py-1 outline-none">
+                                            ${COLUMNS.map(c=>`<option value="${c}" ${video.status===c?'selected':''}>${c}</option>`).join('')}
+                                        </select>
+                                    </td>
+                                    <td class="px-4 sm:px-6 py-4">
+                                        <div class="flex gap-1 sm:gap-2">
+                                            <button onclick="toggleVideoChecklist('${video.id}','captionReady')"   class="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${video.captionReady   ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-astro-card text-slate-600 border-white/5 hover:bg-white/5'}" title="Caption"><i data-lucide="align-left" class="w-3.5 h-3.5"></i></button>
+                                            <button onclick="toggleVideoChecklist('${video.id}','hashtagsReady')"  class="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${video.hashtagsReady  ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-astro-card text-slate-600 border-white/5 hover:bg-white/5'}" title="Hashtags"><i data-lucide="hash" class="w-3.5 h-3.5"></i></button>
+                                            <button onclick="toggleVideoChecklist('${video.id}','thumbnailReady')" class="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${video.thumbnailReady ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-astro-card text-slate-600 border-white/5 hover:bg-white/5'}" title="Thumbnail"><i data-lucide="image" class="w-3.5 h-3.5"></i></button>
+                                            <button onclick="toggleVideoChecklist('${video.id}','ctaAdded')"       class="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${video.ctaAdded       ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-astro-card text-slate-600 border-white/5 hover:bg-white/5'}" title="CTA"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i></button>
+                                            <button onclick="toggleVideoChecklist('${video.id}','speakerTag')"     class="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${video.speakerTag     ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-astro-card text-slate-600 border-white/5 hover:bg-white/5'}" title="Tag"><i data-lucide="user" class="w-3.5 h-3.5"></i></button>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 sm:px-6 py-4 text-right">
+                                        <div class="flex items-center justify-end gap-2">
+                                            ${video.links && Object.values(video.links).some(l=>l) ? `
+                                            <div class="flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20 mr-1">
+                                                ${video.links.instagram ? `<a href="${video.links.instagram}" target="_blank" class="text-pink-400 hover:text-pink-300 p-1"><i data-lucide="instagram" class="w-3.5 h-3.5"></i></a>` : ''}
+                                                ${video.links.facebook  ? `<a href="${video.links.facebook}"  target="_blank" class="text-blue-400 hover:text-blue-300 p-1"><i data-lucide="facebook" class="w-3.5 h-3.5"></i></a>` : ''}
+                                            </div>` : ''}
+                                            <button onclick="openVideoModal('${video.id}')" class="p-2 text-slate-400 hover:text-blue-400 rounded-lg hover:bg-white/5"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function getKanbanHTML() {
+        const displayVideos = state.currentUser.role==='admin' ? state.videos : state.videos.filter(v=>v.assignee===state.currentUser.id);
+        return `
+        <div class="h-full flex flex-col fade-in-up w-full">
+            <div class="mb-4 sm:mb-6">
+                <h1 class="text-xl sm:text-2xl font-bold text-slate-100">Workflow Pipeline</h1>
+                <p class="text-slate-400 text-xs sm:text-sm">Visual progress tracking.</p>
+            </div>
+            <div class="flex-1 overflow-x-auto pb-4 custom-scrollbar w-full">
+                <div class="flex gap-4 h-full min-w-max px-1">
+                    ${COLUMNS.map(column => {
+                        const columnVideos = displayVideos.filter(v=>v.status===column);
+                        return `
+                        <div class="w-72 sm:w-80 flex flex-col glass-card border-none bg-astro-card/30 shrink-0">
+                            <div class="p-3 sm:p-4 border-b border-white/[0.04] bg-astro-card/80 flex justify-between items-center sticky top-0 z-10">
+                                <h3 class="font-semibold text-slate-200 text-xs sm:text-sm uppercase tracking-wider">${column}</h3>
+                                <span class="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-2.5 py-1 rounded-full border border-blue-500/20">${columnVideos.length}</span>
+                            </div>
+                            <div class="p-2 sm:p-3 overflow-y-auto flex-1 custom-scrollbar space-y-2 sm:space-y-3">
+                                ${columnVideos.map(video => `
+                                    <div class="bg-astro-card border border-white/[0.05] p-3 sm:p-4 rounded-2xl shadow-md hover:border-blue-500/30 transition-all group relative">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <span class="text-[9px] font-medium bg-astro-surface border border-white/10 text-slate-400 px-2 py-0.5 rounded-md">${video.id}</span>
+                                        </div>
+                                        <h4 class="text-xs sm:text-sm font-semibold text-slate-200 mb-1 leading-tight line-clamp-2">${video.title}</h4>
+                                        <p class="text-[10px] text-slate-500 mb-3 truncate">${video.topic}</p>
+                                        <div class="flex items-center justify-between mt-auto">
+                                            <div class="flex gap-1">
+                                                <div class="w-2 h-2 rounded-full ${video.captionReady   ? 'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]' : 'bg-slate-700'}" title="Caption"></div>
+                                                <div class="w-2 h-2 rounded-full ${video.hashtagsReady  ? 'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]' : 'bg-slate-700'}" title="Hashtags"></div>
+                                                <div class="w-2 h-2 rounded-full ${video.thumbnailReady ? 'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]' : 'bg-slate-700'}" title="Thumb"></div>
+                                            </div>
+                                            <div class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex gap-1">
+                                                <button onclick="moveKanbanCard('${video.id}','backward')" class="p-1.5 bg-astro-surface text-slate-400 hover:text-white rounded-lg border border-white/5"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                                <button onclick="moveKanbanCard('${video.id}','forward')"  class="p-1.5 bg-blue-500/20 text-blue-400 hover:text-white rounded-lg border border-blue-500/30"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function getDailyTrackerHTML() {
+        let task = state.dailyTasks.find(t=>t.date===state.selectedDate && t.userId===state.currentUser.id);
+        if (!task) task = { accounts:{} };
+        const isUser = state.currentUser.role==='user';
+        const myAccounts = state.userAccounts[state.currentUser.id] || [];
+
+        let contentHTML = '';
+        if (isUser) {
+            contentHTML = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-20 custom-scrollbar w-full">
+                ${myAccounts.map(acc => {
+                    let accData = task.accounts[acc.id] || { count:0, links:[] };
+                    if (typeof accData==='number') accData = { count:accData, links:[] };
+                    const filledLinks = accData.links ? accData.links.filter(Boolean).length : 0;
+                    const linkClass = accData.count>0 && filledLinks<accData.count ? 'text-amber-400' : (accData.count>0 && filledLinks===accData.count ? 'text-teal-400' : 'text-slate-500');
+                    return `
+                    <div class="glass-card p-4 sm:p-5 flex flex-col hover:border-white/10 transition-colors">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2.5 bg-astro-card rounded-xl border border-white/[0.04]">${getPlatformIconHTML(acc.platform, 18)}</div>
+                                <div class="overflow-hidden">
+                                    <h3 class="font-semibold text-slate-200 text-xs sm:text-sm leading-tight truncate max-w-[140px]" title="${acc.name}">${acc.name}</h3>
+                                    <span class="text-[9px] uppercase tracking-wider text-slate-500">${acc.platform}</span>
+                                </div>
+                            </div>
+                            ${acc.url ? `<a href="${acc.url}" target="_blank" class="p-2 text-slate-500 hover:text-blue-400 hover:bg-white/5 rounded-lg shrink-0"><i data-lucide="external-link" class="w-4 h-4"></i></a>` : ''}
+                        </div>
+                        <div class="mt-auto bg-astro-card rounded-2xl p-2 border border-white/[0.04] flex items-center justify-between shadow-inner">
+                            <button onclick="updateTaskCount('${acc.id}',-1)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-astro-cardHover text-slate-400 hover:text-white border border-white/[0.02]"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                            <div class="flex flex-col items-center px-3 transition-colors ${accData.count>0?'cursor-pointer hover:scale-105':''}" ${accData.count>0 ? `onclick="openPostLinksModal('${acc.id}')" title="Click to add Post Links"` : ''}>
+                                <span class="text-2xl font-bold ${accData.count>0?'text-blue-300':'text-white'} leading-none">${accData.count}</span>
+                                <span class="text-[9px] uppercase mt-1 flex items-center gap-1 ${linkClass} font-semibold tracking-wider">
+                                    ${accData.count>0 ? `<i data-lucide="link" class="w-3 h-3"></i> Links` : `Posts`}
+                                </span>
+                            </div>
+                            <button onclick="updateTaskCount('${acc.id}',1)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-sm"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>`;
+                }).join('')}
+                <div onclick="openAddAccountModal()" class="glass-card p-4 sm:p-5 flex flex-col items-center justify-center border-dashed border-2 border-white/[0.05] bg-transparent hover:bg-white/[0.02] cursor-pointer min-h-[160px]">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-3 text-blue-400"><i data-lucide="plus" class="w-6 h-6"></i></div>
+                    <span class="text-sm text-slate-300 font-medium">Add New Account</span>
+                </div>
+            </div>`;
+        } else {
+            const dayTasks = state.dailyTasks.filter(t=>t.date===state.selectedDate);
+            contentHTML = `
+            <div class="glass-card flex-1 p-0 overflow-hidden flex flex-col w-full">
+                <div class="overflow-x-auto custom-scrollbar flex-1 w-full">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="border-b border-white/[0.05] bg-astro-card/50">
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase w-48 sticky left-0 bg-[#111d36] z-10 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Employee</th>
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Platform Breakdown</th>
+                                <th class="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-center w-24">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/[0.02]">
+                            ${dayTasks.length===0 ? `<tr><td colspan="3" class="px-6 py-8 text-center text-slate-500 text-sm italic">No data for this date.</td></tr>` :
+                            dayTasks.map(t => {
+                                const user = USERS.find(u=>u.id===t.userId);
+                                const accList = state.userAccounts[t.userId] || [];
+                                const total = Object.values(t.accounts).reduce((a,b)=>a+(typeof b==='number'?b:(b?.count||0)),0);
+                                return `
+                                <tr class="hover:bg-white/[0.02]">
+                                    <td class="px-4 sm:px-6 py-4 sticky left-0 bg-astro-surface z-10 border-r border-white/[0.02] shadow-[2px_0_5px_rgba(0,0,0,0.1)]">
+                                        <div class="flex items-center gap-3">
+                                            <img src="${user?.avatar}" alt="avatar" class="w-8 h-8 rounded-full border border-white/10 shrink-0" />
+                                            <div><p class="text-sm font-medium text-slate-200 truncate">${user?.name}</p><p class="text-[10px] text-slate-500 uppercase">${user?.role}</p></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 sm:px-6 py-4">
+                                        <div class="flex flex-wrap gap-2">
+                                            ${accList.map(a => {
+                                                const accData = t.accounts[a.id];
+                                                const c = accData ? (typeof accData==='number' ? accData : accData.count) : 0;
+                                                const links = accData?.links ? accData.links.filter(l=>l) : [];
+                                                if(c===0) return '';
+                                                return `<button onclick="openAdminLinksModal('${t.id}','${a.id}')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-astro-card hover:bg-white/5 border border-white/[0.05] hover:border-blue-500/30 transition-colors text-xs text-slate-300 group shadow-sm">
+                                                    ${getPlatformIconHTML(a.platform,12)} <span class="max-w-[120px] truncate">${a.name}</span>
+                                                    <strong class="text-blue-400 ml-1">${c}</strong>
+                                                    ${links.length>0 ? `<i data-lucide="play-circle" class="w-3.5 h-3.5 text-teal-400 ml-1"></i>` : `<i data-lucide="link" class="w-3 h-3 text-slate-600/50 ml-1"></i>`}
+                                                </button>`;
+                                            }).join('')}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 sm:px-6 py-4 text-center">
+                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20 text-sm">${total}</span>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        return `
+        <div class="space-y-4 sm:space-y-6 fade-in-up h-full flex flex-col w-full">
+            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+                <div>
+                    <h1 class="text-xl sm:text-3xl font-bold tracking-tight text-slate-100">Daily Posting Log</h1>
+                    <p class="text-slate-400 mt-1 text-xs sm:text-sm">Track platform specific posts.</p>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                    <div class="flex items-center bg-astro-card border border-white/[0.04] rounded-2xl p-1">
+                        <button onclick="changeDate(-1)" class="p-1.5 sm:p-2 hover:bg-white/5 rounded-xl text-slate-400"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <div class="px-3 py-1 text-xs sm:text-sm text-slate-200 flex items-center gap-2 min-w-[110px] justify-center"><i data-lucide="calendar" class="w-4 h-4 text-blue-400"></i> ${state.selectedDate}</div>
+                        <button onclick="changeDate(1)" class="p-1.5 sm:p-2 hover:bg-white/5 rounded-xl text-slate-400"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                    ${getExportDropdownHTML('handleExportTasks')}
+                </div>
+            </header>
+            ${contentHTML}
+        </div>`;
+    }
+
+    // ── Export Functions ──────────────────────────────────────
+    function handleExportVideos(range) {
+        let targetVideos = state.videos;
+        if (range==='day') targetVideos = targetVideos.filter(v=>v.postDate===new Date().toISOString().split('T')[0]);
+        else if (range==='month') { const m=new Date().toISOString().substring(0,7); targetVideos=targetVideos.filter(v=>v.postDate.startsWith(m)); }
+        const dataToExport = targetVideos.map(v => ({
+            'ID':v.id,'Title':v.title,'Topic':v.topic||'','Speaker':v.speaker||'','Priority':v.priority||'','Status':v.status,
+            'Post Date':v.postDate||'','Post Time':v.postTime||'','Caption':v.captionReady?'Yes':'No','Hashtags':v.hashtagsReady?'Yes':'No',
+            'Thumbnail':v.thumbnailReady?'Yes':'No','CTA':v.ctaAdded?'Yes':'No','Tag':v.speakerTag?'Yes':'No',
+            'Instagram':v.ig_acc||'','Facebook':v.fb_acc||'','YT Shorts':v.yt_shorts||'','Notes':v.notes||'',
+            'Links': v.links ? Object.values(v.links).filter(Boolean).join(' | ') : '',
+            'Assignee': USERS.find(u=>u.id===v.assignee)?.name||'Unassigned'
+        }));
+        exportToCSV(dataToExport, `Videos_${range}_${new Date().toISOString().split('T')[0]}.csv`);
+        state.exportDropdownOpen=false; renderApp();
+    }
+
+    function handleExportTasks(range) {
+        let targets = state.dailyTasks;
+        if (range==='day') targets=targets.filter(t=>t.date===state.selectedDate);
+        else if (range==='month') { const m=state.selectedDate.substring(0,7); targets=targets.filter(t=>t.date.startsWith(m)); }
+        const dataToExport=[];
+        targets.forEach(t => {
+            const user=USERS.find(u=>u.id===t.userId);
+            const accs=state.userAccounts[t.userId]||[];
+            accs.forEach(a => {
+                const accData=t.accounts[a.id];
+                const c=accData?(typeof accData==='number'?accData:accData.count):0;
+                if(c>0) dataToExport.push({
+                    'Date':t.date,'Employee':user?.name||t.userId,'Platform':a.platform,'Account':a.name,'Posts':c,
+                    'Links':(accData.links||[]).filter(l=>l).join(' | ')
+                });
+            });
+        });
+        exportToCSV(dataToExport, `Tasks_${range}_${new Date().toISOString().split('T')[0]}.csv`);
+        state.exportDropdownOpen=false; renderApp();
+    }
+
+    // ── Modal Functions ───────────────────────────────────────
+    function openPostLinksModal(accountId) {
+        const task = state.dailyTasks.find(t=>t.date===state.selectedDate && t.userId===state.currentUser.id);
+        const accData = task?.accounts[accountId];
+        if (!accData || accData.count===0) return;
+        const accInfo = state.userAccounts[state.currentUser.id].find(a=>a.id===accountId);
+
+        let inputsHtml = '';
+        for(let i=0; i<accData.count; i++) {
+            const v = accData.links ? (accData.links[i]||'') : '';
+            inputsHtml += `<div><label class="block text-xs font-medium text-slate-400 mb-1 flex justify-between"><span>Post Link ${i+1}</span> ${v?'<i data-lucide="check" class="w-3 h-3 text-teal-400"></i>':''}</label>
+            <input name="link_${i}" value="${v}" type="url" placeholder="Paste URL..." class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>`;
+        }
+
+        const modalHtml = `
+        <div id="links-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('links-modal')"></div>
+            <div class="glass-card p-5 sm:p-6 w-full max-w-md relative z-10 scale-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="link" class="text-blue-400 w-5 h-5"></i> <span class="truncate">${accInfo.name} Links</span></h2>
+                    <button onclick="closeModal('links-modal')" class="text-slate-400 hover:text-white shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <p class="text-xs text-slate-400 mb-4 bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">Add live URLs for your <strong>${accData.count} posts</strong> today.</p>
+                <form onsubmit="savePostLinks(event,'${accountId}')" class="space-y-4">
+                    ${inputsHtml}
+                    <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium py-3 rounded-xl mt-4">Save Links</button>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modals-container').insertAdjacentHTML('beforeend', modalHtml);
+        lucide.createIcons();
+    }
+
+    function savePostLinks(e, accountId) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const task = state.dailyTasks.find(t=>t.date===state.selectedDate && t.userId===state.currentUser.id);
+        if(task && task.accounts[accountId]) {
+            const count = task.accounts[accountId].count;
+            task.accounts[accountId].links = [];
+            for(let i=0;i<count;i++) task.accounts[accountId].links.push(fd.get(`link_${i}`)||'');
+            syncDailyTask(task);
+        }
+        closeModal('links-modal'); renderApp();
+        showToast('Links saved to Google Sheets', 'success');
+    }
+
+    function openAdminLinksModal(taskId, accountId) {
+        const task = state.dailyTasks.find(t=>t.id===taskId);
+        if(!task) return;
+        const accData = task.accounts[accountId];
+        if(!accData) return;
+        const user = USERS.find(u=>u.id===task.userId);
+        const accInfo = (state.userAccounts[task.userId]||[]).find(a=>a.id===accountId);
+        const links = accData.links||[];
+
+        let linksHtml = links.filter(l=>l).length===0
+            ? `<div class="p-4 text-center text-slate-500 text-sm italic bg-astro-surface rounded-xl border border-white/5">No links attached yet.</div>`
+            : links.map((l,i) => !l
+                ? `<div class="p-3 bg-astro-surface rounded-xl border border-white/5 text-slate-600 text-sm flex items-center gap-2"><i data-lucide="circle-dashed" class="w-4 h-4"></i> Post ${i+1}: Link Pending</div>`
+                : `<a href="${l}" target="_blank" class="p-3 bg-astro-card hover:bg-white/5 rounded-xl border border-white/5 hover:border-blue-500/30 text-blue-300 text-sm flex items-center justify-between group transition-colors">
+                    <span class="flex items-center gap-2 truncate pr-4"><i data-lucide="play-circle" class="w-4 h-4 text-teal-400"></i> Post ${i+1} Link</span>
+                    <i data-lucide="external-link" class="w-4 h-4 text-slate-500 group-hover:text-blue-300 shrink-0"></i></a>`
+            ).join('');
+
+        const modalHtml = `
+        <div id="admin-links-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('admin-links-modal')"></div>
+            <div class="glass-card p-5 sm:p-6 w-full max-w-sm relative z-10 scale-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="overflow-hidden pr-2">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">${getPlatformIconHTML(accInfo?.platform,16)} <span class="truncate">${accInfo?.name||'Account'}</span></h2>
+                        <p class="text-xs text-slate-400 mt-1">By <span class="text-slate-300 font-medium">${user?.name}</span> · ${task.date}</p>
+                    </div>
+                    <button onclick="closeModal('admin-links-modal')" class="text-slate-400 hover:text-white p-1.5 bg-astro-surface rounded-lg hover:bg-white/10 shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="space-y-3">${linksHtml}</div>
+            </div>
+        </div>`;
+        document.getElementById('modals-container').insertAdjacentHTML('beforeend', modalHtml);
+        lucide.createIcons();
+    }
+
+    function openVideoModal(videoId=null) {
+        let v = videoId ? state.videos.find(v=>v.id===videoId) : null;
+        if (!v) {
+            v = { id:`v_${Date.now()}`, title:'', topic:'', about:'', speaker:'', hookLine:'', speakerPriority:'Medium', priority:'Medium', status:'Idea',
+                  assignee: state.currentUser.role==='admin' ? USERS[1].id : state.currentUser.id,
+                  postDate:'', postTime:'', ig_acc:'', fb_acc:'', yt_shorts:'', x_acc:'', threads_acc:'',
+                  captionReady:false, hashtagsReady:false, thumbnailReady:false, ctaAdded:false, speakerTag:false,
+                  notes:'', links:{instagram:'',facebook:'',youtube:'',x:'',threads:''} };
+        }
+        if(!v.links) v.links={};
+
+        const modalHtml = `
+        <div id="video-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('video-modal')"></div>
+            <div class="glass-card p-4 sm:p-6 w-full max-w-4xl relative z-10 max-h-[90vh] overflow-y-auto custom-scrollbar scale-in">
+                <div class="flex justify-between items-center mb-4 border-b border-white/[0.05] pb-4 sticky top-0 bg-[#111d36] z-20">
+                    <div><h2 class="text-lg sm:text-xl font-bold text-white">${videoId?'Edit Video':'New Video Entry'}</h2><span class="text-xs text-amber-400 font-mono">${v.id}</span></div>
+                    <button onclick="closeModal('video-modal')" class="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveVideo(event,'${v.id}')" class="space-y-6 sm:space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="space-y-3 sm:space-y-4">
+                            <h3 class="text-sm font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-2"><i data-lucide="info" class="w-4 h-4"></i> Core Info</h3>
+                            <div><label class="block text-xs font-medium text-slate-400 mb-1">Title</label><input name="title" value="${v.title||''}" required class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                            <div><label class="block text-xs font-medium text-slate-400 mb-1">Hook Line</label><input name="hookLine" value="${v.hookLine||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Topic</label><input name="topic" value="${v.topic||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Speaker</label><input name="speaker" value="${v.speaker||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                            </div>
+                            <div><label class="block text-xs font-medium text-slate-400 mb-1">About</label><textarea name="about" rows="2" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200 custom-scrollbar">${v.about||''}</textarea></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Speaker Priority</label><select name="speakerPriority" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"><option ${v.speakerPriority==='High'?'selected':''}>High</option><option ${v.speakerPriority==='Medium'?'selected':''}>Medium</option><option ${v.speakerPriority==='Low'?'selected':''}>Low</option></select></div>
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Video Priority</label><select name="priority" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"><option ${v.priority==='High'?'selected':''}>High</option><option ${v.priority==='Medium'?'selected':''}>Medium</option><option ${v.priority==='Low'?'selected':''}>Low</option></select></div>
+                            </div>
+                            ${state.currentUser.role==='admin' ? `<div><label class="block text-xs font-medium text-slate-400 mb-1">Assignee</label><select name="assignee" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200">${USERS.filter(u=>u.role!=='admin').map(u=>`<option value="${u.id}" ${v.assignee===u.id?'selected':''}>${u.name}</option>`).join('')}</select></div>` : `<input type="hidden" name="assignee" value="${v.assignee}">`}
+                        </div>
+                        <div class="space-y-3 sm:space-y-4">
+                            <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2"><i data-lucide="target" class="w-4 h-4"></i> Target Accounts</h3>
+                            ${['ig_acc:Instagram','fb_acc:Facebook','yt_shorts:YouTube Shorts'].map(s=>{const[n,l]=s.split(':');return `<div><label class="block text-xs font-medium text-slate-400 mb-1">${l}</label><input name="${n}" value="${v[n]||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>`;}).join('')}
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">X</label><input name="x_acc" value="${v.x_acc||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Threads</label><input name="threads_acc" value="${v.threads_acc||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-6 border-t border-white/[0.05]">
+                        <div class="space-y-3 sm:space-y-4">
+                            <h3 class="text-sm font-semibold text-teal-400 uppercase tracking-wider flex items-center gap-2"><i data-lucide="calendar" class="w-4 h-4"></i> Schedule</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Date</label><input type="date" name="postDate" value="${v.postDate||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200 [color-scheme:dark]"></div>
+                                <div><label class="block text-xs font-medium text-slate-400 mb-1">Time</label><input type="time" name="postTime" value="${v.postTime||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200 [color-scheme:dark]"></div>
+                            </div>
+                            <div><label class="block text-xs font-medium text-slate-400 mb-1">Status</label><select name="status" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200">${COLUMNS.map(c=>`<option value="${c}" ${v.status===c?'selected':''}>${c}</option>`).join('')}</select></div>
+                            <div><label class="block text-xs font-medium text-slate-400 mb-1">Notes</label><textarea name="notes" rows="2" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200 custom-scrollbar">${v.notes||''}</textarea></div>
+                            <div>
+                                <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Checklist</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${[['captionReady','Caption'],['hashtagsReady','Hashtags'],['thumbnailReady','Thumbnail'],['ctaAdded','CTA'],['speakerTag','Tag']].map(([k,l])=>`
+                                    <label class="flex items-center gap-2 cursor-pointer bg-astro-surface px-3 py-2 rounded-xl border border-white/[0.05] hover:bg-white/5">
+                                        <input type="checkbox" name="${k}" ${v[k]?'checked':''} class="w-4 h-4 rounded text-blue-500"> <span class="text-xs text-slate-300">${l}</span>
+                                    </label>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-2"><i data-lucide="link" class="w-4 h-4"></i> Video Links</h3>
+                            ${[['link_instagram','Instagram URL','instagram'],['link_facebook','Facebook URL','facebook'],['link_youtube','YouTube URL','youtube'],['link_x','X URL','x'],['link_threads','Threads URL','threads']].map(([n,p,k])=>`<input type="url" name="${n}" placeholder="${p}..." value="${v.links?.[k]||''}" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200 mb-2">`).join('')}
+                        </div>
+                    </div>
+                    <div class="pt-4 sticky bottom-0 bg-[#111d36] pb-2 border-t border-white/[0.05] z-20">
+                        <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-medium py-3.5 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.3)]">
+                            ${videoId ? 'Save Changes' : 'Create Entry'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modals-container').innerHTML = modalHtml;
+        lucide.createIcons();
+    }
+
+    function saveVideo(e, id) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const index = state.videos.findIndex(v=>v.id===id);
+        const updated = {
+            title:fd.get('title'), hookLine:fd.get('hookLine'), topic:fd.get('topic'), speaker:fd.get('speaker'), about:fd.get('about'),
+            speakerPriority:fd.get('speakerPriority'), priority:fd.get('priority'),
+            ig_acc:fd.get('ig_acc'), fb_acc:fd.get('fb_acc'), yt_shorts:fd.get('yt_shorts'), x_acc:fd.get('x_acc'), threads_acc:fd.get('threads_acc'),
+            status:fd.get('status'), postDate:fd.get('postDate'), postTime:fd.get('postTime'), notes:fd.get('notes'),
+            captionReady:fd.get('captionReady')==='on', hashtagsReady:fd.get('hashtagsReady')==='on',
+            thumbnailReady:fd.get('thumbnailReady')==='on', ctaAdded:fd.get('ctaAdded')==='on', speakerTag:fd.get('speakerTag')==='on',
+            links:{ instagram:fd.get('link_instagram'), facebook:fd.get('link_facebook'), youtube:fd.get('link_youtube'), x:fd.get('link_x'), threads:fd.get('link_threads') }
+        };
+        if(fd.has('assignee')) updated.assignee = fd.get('assignee');
+
+        let finalVideo;
+        if(index>=0) { state.videos[index]={...state.videos[index],...updated}; finalVideo=state.videos[index]; }
+        else { finalVideo={id,...updated}; state.videos.unshift(finalVideo); }
+
+        closeModal('video-modal'); renderApp();
+        showToast('Saving to Google Sheets...', 'info');
+        syncVideo(finalVideo).then(()=>showToast('✓ Video saved to Google Sheets', 'success'));
+    }
+
+    function openAddAccountModal() {
+        const modalHtml = `
+        <div id="acc-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('acc-modal')"></div>
+            <div class="glass-card p-5 sm:p-6 w-full max-w-sm relative z-10 scale-in">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-white">Add Account</h2>
+                    <button onclick="closeModal('acc-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <form onsubmit="saveAccount(event)" class="space-y-4">
+                    <div><label class="block text-xs font-medium text-slate-400 mb-1">Platform</label>
+                    <select name="platform" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200">
+                        <option class="bg-astro-card">Instagram</option><option class="bg-astro-card">Facebook</option>
+                        <option class="bg-astro-card">YouTube</option><option class="bg-astro-card">Telegram</option>
+                        <option class="bg-astro-card">X</option><option class="bg-astro-card">Blogger</option>
+                    </select></div>
+                    <div><label class="block text-xs font-medium text-slate-400 mb-1">Account Name</label><input name="name" required class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                    <div><label class="block text-xs font-medium text-slate-400 mb-1">URL (Optional)</label><input name="url" type="url" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm text-slate-200"></div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium py-3 rounded-xl">Add Account</button>
+                </form>
+            </div>
+        </div>`;
+        document.getElementById('modals-container').innerHTML = modalHtml;
+        lucide.createIcons();
+    }
+
+    function saveAccount(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const newAcc = { id:`acc_${Date.now()}`, platform:fd.get('platform'), name:fd.get('name'), url:fd.get('url') };
+        if(!state.userAccounts[state.currentUser.id]) state.userAccounts[state.currentUser.id]=[];
+        state.userAccounts[state.currentUser.id].push(newAcc);
+        closeModal('acc-modal'); renderApp();
+        syncAccount(newAcc, state.currentUser.id);
+        showToast('Account saved to Google Sheets', 'success');
+    }
+
+    function closeModal(id) { const el=document.getElementById(id); if(el) el.remove(); }
+
+    // ── Main Render ───────────────────────────────────────────
+    function renderApp() {
+        const root = document.getElementById('app-root');
+        if (!state.currentUser) { root.innerHTML = getLoginHTML(); }
+        else {
+            root.innerHTML = getMainLayoutHTML();
+            const container = document.getElementById('content-container');
+            switch(state.activeTab) {
+                case 'dashboard': container.innerHTML = getDashboardHTML(); break;
+                case 'videos':    container.innerHTML = getVideoManagerHTML(); break;
+                case 'kanban':    container.innerHTML = getKanbanHTML(); break;
+                case 'tracker':   container.innerHTML = getDailyTrackerHTML(); break;
+                default: container.innerHTML = `<div class="p-8 text-slate-400 text-center glass-card">Module in development.</div>`;
+            }
+            updateSyncIndicator();
+        }
+        lucide.createIcons();
+    }
+
+    window.onload = () => renderApp();
+    </script>
+</body>
+</html>
